@@ -215,6 +215,9 @@ public class RegularSudokuScript : MonoBehaviour
 			}
 			
 			Module.HandlePass();
+			SendToSudokuCiphers(Enumerable.Range(0, 9)
+				.SelectMany(y => Enumerable.Range(0, 9).Select(x => m_sudoku[x, y]))
+				.ToArray());
 			ModuleSolved = true;
 			Audio.PlaySoundAtTransform(SFX.name, transform);
 		}
@@ -526,6 +529,44 @@ public class RegularSudokuScript : MonoBehaviour
 		}
 
 		return success;
+	}
+
+	// sudoku cipher - uses reflection to construct data and send solved grid to the cipher module
+	void SendToSudokuCiphers(int[] sudokuSolution)
+	{
+		var ciphers = FindObjectsOfType<MonoBehaviour>()
+			.Where(mb => mb.GetType().Name == "SudokuCipher");
+
+		foreach (var cipher in ciphers)
+		{
+			var cipherType = cipher.GetType();
+			var enqueueMethod = cipherType.GetMethods()
+				.FirstOrDefault(m => m.Name == "Enqueue" && m.GetParameters().Length == 2);
+
+			if (enqueueMethod == null)
+				continue;
+
+			var regularDataType = AppDomain.CurrentDomain.GetAssemblies()
+				.SelectMany(a => a.GetTypes())
+				.FirstOrDefault(t => t.Name == "RegularSudokuData");
+
+			if (regularDataType == null)
+				continue;
+
+			var sudokuDataInstance = Activator.CreateInstance(regularDataType);
+
+			var listType = typeof(List<int>);
+			var listInstance = Activator.CreateInstance(listType);
+			var addMethod = listType.GetMethod("Add");
+
+			foreach (var num in sudokuSolution)
+				addMethod.Invoke(listInstance, new object[] { num });
+
+			sudokuDataInstance.SetValue("solution", listInstance);
+
+			try { enqueueMethod.Invoke(cipher, new object[] { "Regular", sudokuDataInstance }); }
+			catch (Exception e) { }
+		}
 	}
 	
 	//twitch plays
