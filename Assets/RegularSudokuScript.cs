@@ -539,6 +539,9 @@ public class RegularSudokuScript : MonoBehaviour
 
 		foreach (var cipher in ciphers)
 		{
+			if (cipher.transform.parent.GetInstanceID() != transform.parent.GetInstanceID())
+				continue;
+		
 			var cipherType = cipher.GetType();
 			var enqueueMethod = cipherType.GetMethods()
 				.FirstOrDefault(m => m.Name == "Enqueue" && m.GetParameters().Length == 2);
